@@ -1,11 +1,16 @@
-// ignore_for_file: sized_box_for_whitespace
+// ignore_for_file: sized_box_for_whitespace, must_be_immutable, use_build_context_synchronously
+
+import 'dart:convert';
 
 import 'package:chat_app/resources/constants.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
 class MsgContainer extends StatefulWidget {
-  String msg;
-  MsgContainer({super.key, required this.msg});
+  Map<String, dynamic> msg;
+  Function onMessageDeletedOrUpdated;
+  MsgContainer(
+      {super.key, required this.msg, required this.onMessageDeletedOrUpdated});
 
   @override
   State<MsgContainer> createState() => _MsgContainerState();
@@ -17,7 +22,7 @@ class _MsgContainerState extends State<MsgContainer> {
   @override
   void initState() {
     super.initState();
-    textEditingController.text = widget.msg;
+    textEditingController.text = widget.msg['message'];
   }
 
   @override
@@ -35,21 +40,18 @@ class _MsgContainerState extends State<MsgContainer> {
             deleteDialog(context);
           },
           child: Container(
+            width: MediaQuery.of(context).size.width * 0.8,
             alignment: Alignment.centerRight,
             margin: EdgeInsets.symmetric(vertical: 10),
-            // height: 50,
-            // width: MediaQuery.of(context).size.width * .6,
-            decoration: BoxDecoration(
-              color: pColor,
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(10.0),
-              child: Align(
-                alignment: Alignment.centerRight,
+            child: Container(
+              decoration: BoxDecoration(
+                color: pColor,
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(10.0),
                 child: Text(
-                  textAlign: TextAlign.end,
-                  widget.msg,
+                  widget.msg['message'],
                   style: TextStyle(
                     fontSize: 16,
                     color: Colors.white,
@@ -94,7 +96,21 @@ class _MsgContainerState extends State<MsgContainer> {
                         style: ButtonStyle(
                             foregroundColor: MaterialStatePropertyAll(sColor),
                             backgroundColor: MaterialStatePropertyAll(pColor)),
-                        onPressed: () {},
+                        onPressed: () async {
+                          var response = await http.delete(Uri.parse(
+                              '$apiURL/messages/${widget.msg['id']}'));
+                          if (response.statusCode == 200) {
+                            var decoded = jsonDecode(response.body);
+
+                            if (decoded['status'] == 'fail') {
+                              print(decoded['data']);
+                              return;
+                            } else {
+                              widget.onMessageDeletedOrUpdated();
+                              Navigator.pop(context);
+                            }
+                          }
+                        },
                         child: Text("Yes"),
                       ),
                     ],
@@ -149,7 +165,17 @@ class _MsgContainerState extends State<MsgContainer> {
                       style: ButtonStyle(
                           foregroundColor: MaterialStatePropertyAll(sColor),
                           backgroundColor: MaterialStatePropertyAll(pColor)),
-                      onPressed: () {},
+                      onPressed: () async {
+                        var response = await http.put(
+                          Uri.parse('$apiURL/messages/${widget.msg['id']}'),
+                          headers: {"Content-Type": "application/json"},
+                          body: jsonEncode(
+                              {"message": textEditingController.text}),
+                        );
+
+                        widget.onMessageDeletedOrUpdated();
+                        Navigator.pop(context);
+                      },
                       child: Text("Edit"),
                     ),
                   ],

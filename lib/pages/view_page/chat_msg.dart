@@ -103,7 +103,7 @@ class _ChatMsgState extends State<ChatMsg> {
               child: SingleChildScrollView(
                 reverse: true,
                 child: FutureBuilder(
-                    future: http.get(Uri.parse("http://$ip:3000/messages")),
+                    future: http.get(Uri.parse("$apiURL/messages")),
                     builder: (context, snapshot) {
                       if (snapshot.hasError) {
                         return Center(
@@ -115,12 +115,15 @@ class _ChatMsgState extends State<ChatMsg> {
                       } else if (snapshot.hasData) {
                         var decodedResponse = jsonDecode(snapshot.data!.body);
                         if (decodedResponse['status'] == 'success') {
-                          List messages = decodedResponse['data']['messages'];
+                          List messages = decodedResponse['data'];
                           return Column(
-                            children: messages.reversed
+                            children: messages
                                 .map(
                                   (e) => MsgContainer(
-                                    msg: e.toString(),
+                                    onMessageDeletedOrUpdated: () {
+                                      setState(() {});
+                                    },
+                                    msg: e,
                                   ),
                                 )
                                 .toList(),
@@ -166,7 +169,7 @@ class _ChatMsgState extends State<ChatMsg> {
                             isLoading = true;
                           });
                           var response = await http.post(
-                            Uri.parse('http://$ip:3000/messages'),
+                            Uri.parse('$apiURL/messages'),
                             headers: {"Content-Type": "application/json"},
                             body: jsonEncode(
                                 {"message": textEditingController.text}),
