@@ -1,4 +1,4 @@
-// ignore_for_file: sized_box_for_whitespace, must_be_immutable, use_build_context_synchronously
+// ignore_for_file: sized_box_for_whitespace
 
 import 'dart:convert';
 
@@ -7,10 +7,14 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 class MsgContainer extends StatefulWidget {
+  final int myId;
   Map<String, dynamic> msg;
-  Function onMessageDeletedOrUpdated;
+  Function onMessageDeletedOrEdited;
   MsgContainer(
-      {super.key, required this.msg, required this.onMessageDeletedOrUpdated});
+      {super.key,
+      required this.msg,
+      required this.myId,
+      required this.onMessageDeletedOrEdited});
 
   @override
   State<MsgContainer> createState() => _MsgContainerState();
@@ -23,6 +27,10 @@ class _MsgContainerState extends State<MsgContainer> {
   void initState() {
     super.initState();
     textEditingController.text = widget.msg['message'];
+  }
+
+  bool wasSentByMe() {
+    return (widget.myId.toString() == widget.msg['sentBy']['id'].toString());
   }
 
   @override
@@ -41,23 +49,35 @@ class _MsgContainerState extends State<MsgContainer> {
           },
           child: Container(
             width: MediaQuery.of(context).size.width * 0.8,
-            alignment: Alignment.centerRight,
+            alignment:
+                (wasSentByMe()) ? Alignment.centerRight : Alignment.centerLeft,
             margin: EdgeInsets.symmetric(vertical: 10),
-            child: Container(
-              decoration: BoxDecoration(
-                color: pColor,
-                borderRadius: BorderRadius.circular(15),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(10.0),
-                child: Text(
-                  widget.msg['message'],
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.white,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (!wasSentByMe()) Text(widget.msg['sentBy']['name']),
+                Container(
+                  decoration: BoxDecoration(
+                    color: wasSentByMe()
+                        ? const Color.fromARGB(255, 10, 54, 129)
+                        : pColor,
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(10.0),
+                    child: Text(
+                      widget.msg['message'],
+                      softWrap: true,
+                      maxLines: 5,
+                      textAlign: TextAlign.end,
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
                 ),
-              ),
+              ],
             ),
           ),
         ),
@@ -98,16 +118,15 @@ class _MsgContainerState extends State<MsgContainer> {
                             backgroundColor: MaterialStatePropertyAll(pColor)),
                         onPressed: () async {
                           var response = await http.delete(Uri.parse(
-                              '$apiURL/messages/${widget.msg['id']}'));
+                              "$apiURL/messages/${widget.msg['id']}"));
                           if (response.statusCode == 200) {
                             var decoded = jsonDecode(response.body);
-
                             if (decoded['status'] == 'fail') {
                               print(decoded['data']);
                               return;
                             } else {
-                              widget.onMessageDeletedOrUpdated();
-                              Navigator.pop(context);
+                              widget.onMessageDeletedOrEdited();
+                              Navigator.of(context).pop();
                             }
                           }
                         },
@@ -167,14 +186,14 @@ class _MsgContainerState extends State<MsgContainer> {
                           backgroundColor: MaterialStatePropertyAll(pColor)),
                       onPressed: () async {
                         var response = await http.put(
-                          Uri.parse('$apiURL/messages/${widget.msg['id']}'),
-                          headers: {"Content-Type": "application/json"},
-                          body: jsonEncode(
-                              {"message": textEditingController.text}),
-                        );
-
-                        widget.onMessageDeletedOrUpdated();
-                        Navigator.pop(context);
+                            Uri.parse("$apiURL/messages/${widget.msg['id']}"),
+                            headers: {"Content-Type": "application/json"},
+                            body: jsonEncode({
+                              "message": textEditingController.text,
+                            }));
+                        // print(response.body);
+                        widget.onMessageDeletedOrEdited();
+                        Navigator.of(context).pop();
                       },
                       child: Text("Edit"),
                     ),

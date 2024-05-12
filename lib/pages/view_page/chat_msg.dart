@@ -10,17 +10,30 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 class ChatMsg extends StatefulWidget {
-  const ChatMsg({super.key});
+  final int senderId;
+  const ChatMsg({super.key, required this.senderId});
 
   @override
   State<ChatMsg> createState() => _ChatMsgState();
 }
 
-String ip = '10.32.16.247';
-
 class _ChatMsgState extends State<ChatMsg> {
   TextEditingController textEditingController = TextEditingController();
   bool isLoading = false;
+
+  Future<void> fetchMessage() async {
+    await Future.delayed(Duration(seconds: 2), () async {
+      setState(() {});
+      await fetchMessage();
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    fetchMessage();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -120,10 +133,11 @@ class _ChatMsgState extends State<ChatMsg> {
                             children: messages
                                 .map(
                                   (e) => MsgContainer(
-                                    onMessageDeletedOrUpdated: () {
+                                    myId: widget.senderId,
+                                    msg: e,
+                                    onMessageDeletedOrEdited: () {
                                       setState(() {});
                                     },
-                                    msg: e,
                                   ),
                                 )
                                 .toList(),
@@ -171,8 +185,10 @@ class _ChatMsgState extends State<ChatMsg> {
                           var response = await http.post(
                             Uri.parse('$apiURL/messages'),
                             headers: {"Content-Type": "application/json"},
-                            body: jsonEncode(
-                                {"message": textEditingController.text}),
+                            body: jsonEncode({
+                              "message": textEditingController.text,
+                              "sentBy": widget.senderId,
+                            }),
                           );
                           textEditingController.clear();
                           var decodedResponse = jsonDecode(response.body);
